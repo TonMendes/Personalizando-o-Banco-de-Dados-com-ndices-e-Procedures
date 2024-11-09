@@ -1,0 +1,124 @@
+Parte 1 – Criando índices em Banco de Dados
+Vamos primeiro responder às perguntas solicitadas e depois explicar os índices necessários para otimizar a consulta.
+
+1. Qual o departamento com maior número de pessoas?
+Query para responder essa pergunta:
+
+SELECT department, COUNT(*) AS num_people
+FROM employees
+GROUP BY department
+ORDER BY num_people DESC
+LIMIT 1;
+
+
+Tabela: employees
+Índice: CREATE INDEX idx_department ON employees(department);
+Motivo: O índice na coluna department irá otimizar a consulta de agrupamento e contagem de funcionários por departamento, já que a consulta usa a função GROUP BY e um filtro com a cláusula ORDER BY.
+
+2. Quais são os departamentos por cidade?
+Query para responder essa pergunta:
+
+SELECT city, department, COUNT(*) AS num_people
+FROM employees
+GROUP BY city, department
+ORDER BY city, department;
+
+
+Tabela: employees
+Índice: CREATE INDEX idx_city_department ON employees(city, department);
+Motivo: Como a consulta agrupa por city e department, o índice composto nessas duas colunas irá otimizar a operação de agrupamento e melhorar a performance na recuperação dos dados ordenados.
+
+3. Relação de empregados por departamento
+Query para responder essa pergunta:
+
+SELECT department, employee_name
+FROM employees
+ORDER BY department, employee_name;
+
+
+Tabela: employees
+Índice: CREATE INDEX idx_department_name ON employees(department, employee_name);
+Motivo: O índice composto nas colunas department e employee_name ajudará a ordenar os resultados e tornar a consulta mais eficiente ao retornar a relação de empregados por departamento.
+
+
+
+Parte 2 – Utilização de Procedures para Manipulação de Dados
+Aqui vamos criar uma procedure para inserção, remoção e atualização de dados, com uma variável de controle para determinar a ação a ser executada.
+
+Exemplo de Procedure para manipulação de dados:
+
+DELIMITER $$
+
+CREATE PROCEDURE manage_employee_data(
+    IN action INT,  -- Ação que será realizada: 1 = SELECT, 2 = INSERT, 3 = UPDATE, 4 = DELETE
+    IN emp_id INT,
+    IN emp_name VARCHAR(255),
+    IN emp_department VARCHAR(255)
+)
+BEGIN
+    DECLARE result INT;
+
+    -- Verifica a ação a ser executada
+    CASE action
+        -- Seleção de dados
+        WHEN 1 THEN
+            SELECT employee_name, department 
+            FROM employees
+            WHERE employee_id = emp_id;
+
+        -- Inserção de dados
+        WHEN 2 THEN
+            INSERT INTO employees (employee_name, department)
+            VALUES (emp_name, emp_department);
+
+        -- Atualização de dados
+        WHEN 3 THEN
+            UPDATE employees
+            SET employee_name = emp_name, department = emp_department
+            WHERE employee_id = emp_id;
+
+        -- Remoção de dados
+        WHEN 4 THEN
+            DELETE FROM employees
+            WHERE employee_id = emp_id;
+        
+        ELSE
+            SELECT 'Ação inválida' AS error_message;
+    END CASE;
+    
+END$$
+
+DELIMITER ;
+
+
+
+
+Descrição do código:
+Parâmetros de entrada:
+
+action: Ação a ser executada, onde:
+1 significa SELECT
+2 significa INSERT
+3 significa UPDATE
+4 significa DELETE
+emp_id: ID do empregado (usado para SELECT, UPDATE e DELETE).
+emp_name: Nome do empregado (usado para INSERT e UPDATE).
+emp_department: Departamento do empregado (usado para INSERT e UPDATE).
+Bloco CASE:
+
+Dependendo do valor de action, a procedure executa um SELECT, INSERT, UPDATE ou DELETE.
+Se o valor de action não for válido, é retornada uma mensagem de erro.
+Exemplo de chamada da procedure:
+
+SELECT:
+CALL manage_employee_data(1, 101, NULL, NULL);  -- Recupera os dados do empregado com ID 101
+
+INSERT:
+CALL manage_employee_data(2, NULL, 'John Doe', 'Marketing');  -- Insere um novo empregado
+
+UPDATE:
+CALL manage_employee_data(3, 101, 'Jane Doe', 'Finance');  -- Atualiza o nome e departamento do empregado com ID 101
+
+DELETE:
+CALL manage_employee_data(4, 101, NULL, NULL);  -- Deleta o empregado com ID 101
+
